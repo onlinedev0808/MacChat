@@ -1,0 +1,75 @@
+{% extends 'chat/chat.html' %}
+{% block hide %}{% endblock %}
+{% block gmessages %}
+    {% for gmessage in gmessages %}
+        {% if gmessage.sender == request.user %}
+            <div class="card-panel right" style="width: 75%; position: relative">
+                <div style="position: absolute; top: 0; left:3px; font-weight: bolder" class="title">You</div>
+                <div style="position: absolute; top: 0; right:3px; font-weight: lighter">{{ gmessage.timestamp }}</div>
+                {{ gmessage }}
+            </div>
+        {% else %}
+            <div class="card-panel left blue lighten-5" style="width: 75%; position: relative">
+                <div style="position: absolute; top: 0; left:3px; font-weight: bolder" class="title">{{ gmessage.sender }}</div>
+                <div style="position: absolute; top: 0; right:3px; font-weight: lighter">{{ gmessage.timestamp }}</div>
+                {{ gmessage }}
+            </div>
+        {% endif %}
+        {% empty %}
+            <div id="no_rooms">
+                <span class="title" style="font-weight: bolder">No messages in chatroom yet.</span>
+            </div>
+    {% endfor %}
+<script>
+    //For sending
+    // Send takes three args: sender, room, message. sender & room are ids of users and the room, and message is the text to be sent.
+    function gsend(sender, room, message) {
+        console.log(sender);
+        console.log(room);
+        console.log(message);
+        //POST to '/api/messages', the data in JSON string format
+        $.post('/api/gmessages', '{"sender": "'+ sender +'", "room": "'+ room +'","message": "'+ message +'" }', function (data) {
+            console.log(data);
+            var box = text_box.replace('{sender}', "You"); // Replace the text '{sender}' with 'You'
+            box = box.replace('{message}', message); // Replace the text '{message}' with the message that has been sent.
+            $('#board').append(box); // Render the message inside the chat-box by appending it at the end.
+            scrolltoend(); // Scroll to the bottom of he chat-box
+        })
+    }
+
+    $(function () {
+        scrolltoend();
+        $('#chat-box').on('submit', function (event) {
+            event.preventDefault();
+            var gmessage = $('#id_message');
+            gsend('{{ request.user.username }}', '{{ receiver }}', gmessage.val());
+            gmessage.val('');
+        })
+    })
+
+    //For receiving
+    function greceive() {
+        // 'sender_id' and 'receiver_id' are global variable declared in the chat.html, which contains the ids of the user / room
+        $.get('/api/gmessages/'+ sender_id + '/' + receiver_id, function (data) {
+            console.log(data);
+            if (data.length !== 0)
+            {
+                for(var i=0;i<data.length;i++) {
+                    console.log(data[i]);
+                    var box = text_box.replace('{sender}', data[i].sender);
+                    box = box.replace('{message}', data[i].message);
+                    box = box.replace('right', 'left blue lighten-5');
+                    $('#board').append(box);
+                    scrolltoend();
+                }
+            }
+        })
+    }
+
+    $(function () {
+        $('#room{{ receiver.id }}').addClass('active');
+        //Call receive function each 1 seconds to check for new messages in the database
+        setInterval(greceive,1000)
+    })
+</script>
+{% endblock %}
